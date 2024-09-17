@@ -2,7 +2,7 @@
 
 This document details protocol version 1.0 of Discord’s audio/video end-to-end encryption (DAVE) protocol.
 
-Beginning September 2024, supporting Discord clients prefer to use end-to-end encryption for DM/GDM calls, server voice channels (excluding stage channels), and Go Live streams. In 2025 all official Discord clients will support the protocol and it will be an enforced requirement to connect to the end-to-end encryption eligible audio/video session types listed above.
+Beginning September 2024, supporting Discord clients prefer to use end-to-end encryption for DM/GDM calls, server voice channels (excluding stage channels), and Go Live streams. In 2025, all official Discord clients will support the protocol and it will be an enforced requirement to connect to the end-to-end encryption eligible audio/video session types listed above.
 
 This document uses the TLS presentation language [[RFC8446]](https://www.rfc-editor.org/info/rfc8446) with the Messaging Layer Security (MLS) Protocol additional features for [Optional Value](https://www.rfc-editor.org/rfc/rfc9420.html#section-2.1.1) and [Variable-Size Vector Length Headers](https://www.rfc-editor.org/rfc/rfc9420.html#section-2.1.2).
 
@@ -53,7 +53,7 @@ We aim to defend against a wide array of adversaries, in particular:
 
 Against these kinds of adversaries, working in collusion or independently, we specifically seek to provide:
 
-- **Confidentiality:** Only active and authorized participants should have access to the contents of end-to-end encrypted calls. Once a participant has left or otherwise been removed from the end-to-end encrypted call, they should no longer have access to further communications. When a participant joins a call, they do not have access to communiciations occuring prior to them joining.
+- **Confidentiality:** Only active and authorized participants should have access to the contents of end-to-end encrypted calls. Once a participant has left or otherwise been removed from the end-to-end encrypted call, they should no longer have access to further communications. When a participant joins a call, they do not have access to communications occurring prior to them joining.
 - **Integrity:** Those who are not active participants should not have the ability to surreptitiously corrupt (tamper, forge, nor replay) end-to-end encrypted calls.
 - **Authenticity**: Participants should be able to clearly identify each other, and have sufficient information to trust that they are communicating with the participants that they expect.
 
@@ -90,7 +90,7 @@ When the MLS group is to remain unchanged, the announced epoch in the [dave_prot
 
 When the MLS group must be re-created, this message will carry an `epoch` of 1. Upon receiving a [dave_protocol_prepare_epoch opcode (24)](#dave_protocol_prepare_epoch-24) with an `epoch = 1`, the client must generate and send a new key package to the voice gateway. The voice gateway then follows the usual negotiation process for MLS group creation (described in [Initial Group Creation](#initial-group-creation)).
 
-Once all clients are ready for the protocol change they this report to the voice gateway using the [dave_protocol_ready_for_transition opcode (23)](#dave_protocol_ready_for_transition-23). When the MLS group is being re-created or moving to a new epoch, clients report that they are ready for the transition after processing the commit. When the MLS group is retained, clients report that they are ready for the transition once they prepare their receiving frame decryptors for the protocol version to be used for the given transition ID.
+Once all clients are ready for the protocol change, they report to the voice gateway using the [dave_protocol_ready_for_transition opcode (23)](#dave_protocol_ready_for_transition-23). When the MLS group is being re-created or moving to a new epoch, clients report that they are ready for the transition after processing the commit. When the MLS group is retained, clients report that they are ready for the transition once they prepare their receiving frame decryptors for the protocol version to be used for the given transition ID.
 
 After all clients are ready (or after a timeout), the voice gateway announces that the transition should be executed via the [dave_protocol_execute_transition opcode (22)](#dave_protocol_execute_transition-22). Upon receipt of this message, media senders begin using the new protocol version and new key ratchet (if applicable).
 
@@ -266,11 +266,11 @@ When a member with a local group receives a [dave_mls_proposals opcode (27)](#da
 
 If a member receives proposals from the voice gateway while they do not have a local group, the proposals are ignored.
 
-The group is established when the voice gateway broadcasts the first commit and associated welcome message(s) via the [dave_mls_announce_commit_transition opcode (29)](#dave_mls_announce_commit_transition-29) and [dave_mls_welcome opcode (30)](#dave_mls_welcome-30). When the voice gateway broadcasts this message, it updates its local MLS group context to consider the MLS group established. When the client receives either its own commit or a welcome, it updates its local group state and discards all pending state.
+The group is established when the voice gateway broadcasts the first commit and associated welcome message(s) via the [dave_mls_announce_commit_transition opcode (29)](#dave_mls_announce_commit_transition-29) and [dave_mls_welcome opcode (30)](#dave_mls_welcome-30). When the voice gateway broadcasts this message, it updates its local MLS group context to consider the MLS group established. When the client receives either its own commit or a welcome, it updates its local group state and discards all pending states.
 
 ### Invalid Groups
 
-To be valid an MLS group must have the expected ciphersuite and extension list for the protocol version (per [MLS Parameters](#mls-parameters)) and must include the external senders extension with one external sender exactly matching that received from the voice gateway via the [dave_mls_external_sender_package opcode (25)](#dave_mls_external_sender_package-25).
+To be valid an MLS group must have the expected ciphersuite and extension list for the protocol version (per [MLS Parameters](#mls-parameters)) and must include the external sender's extension with one external sender exactly matching that received from the voice gateway via the [dave_mls_external_sender_package opcode (25)](#dave_mls_external_sender_package-25).
 
 The voice gateway may detect an invalid group during its validation of the initial commit and refuse to broadcast that commit.
 
@@ -296,7 +296,7 @@ MLS Handshake messages must be sent in plaintext by all members, as an MLS Publi
 
 The voice gateway inspects public commit messages. A commit is only valid when:
 
-- It includes one or more proposals references
+- It includes one or more proposals' references
 - It references only proposals of the types add and remove
 - It references all unrevoked proposals broadcast in the epoch by the external sender
 - It references and includes no other proposals
@@ -496,7 +496,7 @@ The protocol frame decryptor will only decrypt a given key/nonce one time. Decry
 
 Per [Codec Handling](#codec-handling), some sections of protocol frames must be left unencrypted so they pass through the WebRTC codec-specific packetizer and depacketizer.
 
-The unencrypted ranges identify which portions of the interleaved protocol media frame are plaintext and which are ciphertext. Each included range is represented as an byte offset and byte size pair, with both encoded using [ULEB128](#uleb128-encoding). Unencrypted ranges are ordered by their ascending byte offset.
+The unencrypted ranges identify which portions of the interleaved protocol media frame are plaintext and which are ciphertext. Each included range is represented as a byte offset and byte size pair, with both encoded using [ULEB128](#uleb128-encoding). Unencrypted ranges are ordered by their ascending byte offset.
 
 The encrypting frame transformer is codec-aware, and processes each incoming encoded frame to determine the unencrypted ranges for the frame. The decrypted frame transformer deserializes the unencrypted ranges from the protocol supplemental data, and reconstructs the merged additional data and ciphertext necessary for decryption.
 
@@ -811,7 +811,7 @@ A verifying user can store a persistent verification for another user upon compl
 
 An authenticated verifying user can confirm that the other user’s key is persistent by sending a POST request to the `/voice/<user-id>/match-public_key` endpoint in Discord API. The request must include the public key, key version, and user ID. The API returns whether the provided key and key version match the provided user.
 
-The verified peristent public key is locally stored by the verifying user. The stored data includes the verified public key, the verified user ID, and other associated metadata (e.g. key version).
+The verified persistent public key is locally stored by the verifying user. The stored data includes the verified public key, the verified user ID, and other associated metadata (e.g. key version).
 
 When in a call, a user can see if the key presented by another user matches the one the previously verified.
 
