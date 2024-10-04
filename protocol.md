@@ -1,8 +1,8 @@
 # Introduction
 
-This document details protocol version 1.0 of Discord’s audio/video end-to-end encryption (DAVE) protocol.
+This document details protocol version 1.1 of Discord’s audio/video end-to-end encryption (DAVE) protocol.
 
-Beginning September 2024, supporting Discord clients prefer to use end-to-end encryption for DM/GDM calls, server voice channels (excluding stage channels), and Go Live streams. In 2025 all official Discord clients will support the protocol and it will be an enforced requirement to connect to the end-to-end encryption eligible audio/video session types listed above.
+Beginning September 2024, supporting Discord clients prefer to use end-to-end encryption for DM/GDM calls, server voice channels (excluding stage channels), and Go Live streams. In 2025, all official Discord clients will support the protocol and it will be an enforced requirement to connect to the end-to-end encryption eligible audio/video session types listed above.
 
 This document uses the TLS presentation language [[RFC8446]](https://www.rfc-editor.org/info/rfc8446) with the Messaging Layer Security (MLS) Protocol additional features for [Optional Value](https://www.rfc-editor.org/rfc/rfc9420.html#section-2.1.1) and [Variable-Size Vector Length Headers](https://www.rfc-editor.org/rfc/rfc9420.html#section-2.1.2).
 
@@ -53,7 +53,7 @@ We aim to defend against a wide array of adversaries, in particular:
 
 Against these kinds of adversaries, working in collusion or independently, we specifically seek to provide:
 
-- **Confidentiality:** Only active and authorized participants should have access to the contents of end-to-end encrypted calls. Once a participant has left or otherwise been removed from the end-to-end encrypted call, they should no longer have access to further communications. When a participant joins a call, they do not have access to communiciations occuring prior to them joining.
+- **Confidentiality:** Only active and authorized participants should have access to the contents of end-to-end encrypted calls. Once a participant has left or otherwise been removed from the end-to-end encrypted call, they should no longer have access to further communications. When a participant joins a call, they do not have access to communications occurring prior to them joining.
 - **Integrity:** Those who are not active participants should not have the ability to surreptitiously corrupt (tamper, forge, nor replay) end-to-end encrypted calls.
 - **Authenticity**: Participants should be able to clearly identify each other, and have sufficient information to trust that they are communicating with the participants that they expect.
 
@@ -90,7 +90,7 @@ When the MLS group is to remain unchanged, the announced epoch in the [dave_prot
 
 When the MLS group must be re-created, this message will carry an `epoch` of 1. Upon receiving a [dave_protocol_prepare_epoch opcode (24)](#dave_protocol_prepare_epoch-24) with an `epoch = 1`, the client must generate and send a new key package to the voice gateway. The voice gateway then follows the usual negotiation process for MLS group creation (described in [Initial Group Creation](#initial-group-creation)).
 
-Once all clients are ready for the protocol change they this report to the voice gateway using the [dave_protocol_ready_for_transition opcode (23)](#dave_protocol_ready_for_transition-23). When the MLS group is being re-created or moving to a new epoch, clients report that they are ready for the transition after processing the commit. When the MLS group is retained, clients report that they are ready for the transition once they prepare their receiving frame decryptors for the protocol version to be used for the given transition ID.
+Once all clients are ready for the protocol change, they report this to the voice gateway using the [dave_protocol_ready_for_transition opcode (23)](#dave_protocol_ready_for_transition-23). When the MLS group is being re-created or moving to a new epoch, clients report that they are ready for the transition after processing the commit. When the MLS group is retained, clients report that they are ready for the transition once they prepare their receiving frame decryptors for the protocol version to be used for the given transition ID.
 
 After all clients are ready (or after a timeout), the voice gateway announces that the transition should be executed via the [dave_protocol_execute_transition opcode (22)](#dave_protocol_execute_transition-22). Upon receipt of this message, media senders begin using the new protocol version and new key ratchet (if applicable).
 
@@ -233,7 +233,7 @@ Welcomed members directly receive the welcome message encrypted for their key pa
 
 Upon successful processing of a [dave_mls_welcome opcode (30)](#dave_mls_welcome-30) message, welcomed members report that they are ready for the associated transition by sending the [dave_protocol_ready_for_transition opcode (23)](#dave_protocol_ready_for_transition-23).
 
-Welcomed members are only able to decrypt media sent for epochs that they are a member of. Welcomed members may not be able to immediately decrypt in-flight media, since media senders will continue to use key ratchets from the previous epoch until the transition is executed via the [dave_protocol_execute_transition opcode (22)](#dave_protocol_execute_transition-22). 
+Welcomed members are only able to decrypt media sent for epochs that they are a member of. Welcomed members may not be able to immediately decrypt in-flight media, since media senders will continue to use key ratchets from the previous epoch until the transition is executed via the [dave_protocol_execute_transition opcode (22)](#dave_protocol_execute_transition-22).
 
 ## Member Remove
 
@@ -250,7 +250,7 @@ All group members follow the process described in [Proposal Handling](#proposal-
 
 During transition phases, media is still sent for the previous group's epoch until media senders receive the [dave_protocol_execute_transition opcode (22)](#dave_protocol_execute_transition-22). When the group completes a transition to the new epoch, removed members are no longer able to decrypt media sent in the next or any future epochs (unless they rejoin and become a member of the group again).
 
-This means that removed members can decrypt media sent immediately after they are removed from the group, for a period of time up to roughly two seconds (due to the voice gateway transition timeout and the latency between the voice gateway and clients). 
+This means that removed members can decrypt media sent immediately after they are removed from the group, for a period of time up to roughly two seconds (due to the voice gateway transition timeout and the latency between the voice gateway and clients).
 
 Though removed members may be able to decrypt media still being sent during the short transition period, they are no longer forwarded that media from the SFU. Discord first-party clients display all members of the media session as long as they remain connected to the voice gateway and may be receiving media from the SFU.
 
@@ -278,9 +278,11 @@ An invalid group may however not be detected until the first member(s) are welco
 
 ## Sole member reset
 
-When only a single member remains in an established group, the voice gateway sends a [dave_protocol_prepare_epoch opcode (24)](#dave_protocol_prepare_epoch-24) with the initial group epoch `epoch = 1` to the sole remaining member. The voice gateway replaces its local view of the MLS group with a new unestablished group.
+When only a single member remains in an established group, the voice gateway sends a [dave_protocol_prepare_epoch opcode (24)](#dave_protocol_prepare_epoch-24) with the initial group epoch `epoch = 1` to the sole remaining member. This is followed by a [dave_protocol_prepare_transition opcode (21)](#dave_protocol_prepare_transition-21) with the initialization transition ID `transition_id = 0`. The voice gateway replaces its local view of the MLS group with a new unestablished group.
 
 Clients reset their local group state anytime they receive a [dave_protocol_prepare_epoch opcode (24)](#dave_protocol_prepare_epoch-24) with `epoch = 1`. Per [Key Packages](#key-packages), the sole remaining member generates and sends a new key package upon receipt of this message.
+
+Upon receiving [dave_protocol_prepare_transition opcode (21)](#dave_protocol_prepare_transition-21) with `transition_id = 0`, the client immediately executes the transition. In the sole member reset case, this indicates to the client that they should transition to the pending local group they created after the reset caused by [dave_protocol_prepare_epoch opcode (24)](#dave_protocol_prepare_epoch-24).
 
 This ensures that no single member retains control of an established group. When future members join the call, a new group is created following the process described in [Initial Group Creation](#initial-group-creation).
 
@@ -296,7 +298,7 @@ MLS Handshake messages must be sent in plaintext by all members, as an MLS Publi
 
 The voice gateway inspects public commit messages. A commit is only valid when:
 
-- It includes one or more proposals references
+- It includes one or more proposal references
 - It references only proposals of the types add and remove
 - It references all unrevoked proposals broadcast in the epoch by the external sender
 - It references and includes no other proposals
@@ -306,7 +308,11 @@ The voice gateway inspects public commit messages. A commit is only valid when:
 
 Clients assume the voice gateway has validated the broadcasted commit to the best of its ability.
 
-The client will refuse to process any commit when it does not have an established group (i.e. a group with epoch > 0) unless that commit exactly matches the commit they produced for their initial local group.
+The client will refuse to process any commit when:
+
+- It does not have an established group (i.e. a group with epoch > 0) unless that commit exactly matches the commit they produced for their initial local group
+- The commit includes any proposals that are not a previously cached proposal reference
+- The resulting group includes a duplicated basic credential (i.e. the big-endian user ID snowflake) between two or more leaf nodes
 
 Clients always perform the commit validation outlined by MLS protocol version 1.0.
 
@@ -496,7 +502,7 @@ The protocol frame decryptor will only decrypt a given key/nonce one time. Decry
 
 Per [Codec Handling](#codec-handling), some sections of protocol frames must be left unencrypted so they pass through the WebRTC codec-specific packetizer and depacketizer.
 
-The unencrypted ranges identify which portions of the interleaved protocol media frame are plaintext and which are ciphertext. Each included range is represented as an byte offset and byte size pair, with both encoded using [ULEB128](#uleb128-encoding). Unencrypted ranges are ordered by their ascending byte offset.
+The unencrypted ranges identify which portions of the interleaved protocol media frame are plaintext and which are ciphertext. Each included range is represented as a byte offset and byte size pair, with both encoded using [ULEB128](#uleb128-encoding). Unencrypted ranges are ordered by their ascending byte offset.
 
 The encrypting frame transformer is codec-aware, and processes each incoming encoded frame to determine the unencrypted ranges for the frame. The decrypted frame transformer deserializes the unencrypted ranges from the protocol supplemental data, and reconstructs the merged additional data and ciphertext necessary for decryption.
 
@@ -726,7 +732,7 @@ A given device may use either ephemeral or persistent signature keypairs.
 
 ### Ephemeral Signature Keypairs
 
-Ephemeral signature private keys (ESPrv) are not stored on device, and last maximally for the duration of a Discord session. 
+Ephemeral signature private keys (ESPrv) are not stored on device, and last maximally for the duration of a Discord session.
 
 A new ephemeral signature keypair is generated when joining a protocol call, as long as there are no active protocol media sessions. See [Consistency of Identity Keypairs](#consistency-of-identity-keypairs) for details.
 
@@ -800,6 +806,7 @@ Should persistent identity be unavailable for any of the above reasons, the clie
 ## Performing Verification
 
 A pair of users complete verification by:
+
 - manually comparing a displayable version of the pairwise fingerprint out-of-band
 - automatically comparing the full pairwise fingerprint by sharing a deeplink out-of-band
 
@@ -811,7 +818,7 @@ A verifying user can store a persistent verification for another user upon compl
 
 An authenticated verifying user can confirm that the other user’s key is persistent by sending a POST request to the `/voice/<user-id>/match-public_key` endpoint in Discord API. The request must include the public key, key version, and user ID. The API returns whether the provided key and key version match the provided user.
 
-The verified peristent public key is locally stored by the verifying user. The stored data includes the verified public key, the verified user ID, and other associated metadata (e.g. key version).
+The verified persistent public key is locally stored by the verifying user. The stored data includes the verified public key, the verified user ID, and other associated metadata (e.g. key version).
 
 When in a call, a user can see if the key presented by another user matches the one the previously verified.
 
@@ -828,7 +835,7 @@ Determining the reason for the mismatch requires out-of-band confirmation from t
 
 If the verified user does not have a persistent public identity key, the completed verification must be stored ephemerally by the verifying user.
 
-The verified user's ephemeral key remains the same as long as they remain connected to the media session. A verifying user may leave and later re-join the same media session and see that the previously verified user is still verified (i.e. because the verified user remained connected to the media session with the same identity key). 
+The verified user's ephemeral key remains the same as long as they remain connected to the media session. A verifying user may leave and later re-join the same media session and see that the previously verified user is still verified (i.e. because the verified user remained connected to the media session with the same identity key).
 
 Any action which clears the memory of the verifying user's client (e.g. application relaunch) will remove all ephemeral verifications.
 
@@ -852,6 +859,8 @@ Web and other clients which may not have secure storage available should warn us
 
 Describes the format of protocol related voice gateway opcodes referenced throughout this document. Note that binary vector length headers follow the variable-size format outlined by the MLS Protocol in [Variable-Size Vector Length Headers](https://www.rfc-editor.org/rfc/rfc9420.html#section-2.1.2).
 
+Some binary messages include MLS messages, see the [MLS Protocol Message Framing section](https://www.rfc-editor.org/rfc/rfc9420.html#section-6) for MLSMessage formatting.
+
 ## identify (0)
 
 This opcode uses a JSON text representation, and is sent from the client to the server to identify themselves and connect to the voice gateway. It includes the client's maximum supported DAVE protocol version `max_dave_protocol_version`.
@@ -865,7 +874,6 @@ This opcode uses a JSON text representation, and is sent from the client to the 
   }
 }
 ```
-
 
 ## select_protocol_ack (4)
 
@@ -898,7 +906,7 @@ This opcode uses a JSON text representation, and includes one or more Discord sn
 
 ## dave_protocol_prepare_transition (21)
 
-This opcode uses a JSON text representation, and includes the transition ID and protocol version for the transition. The protocol only uses this opcode to indicate when a downgrade to protocol version 0 is upcoming.
+This opcode uses a JSON text representation, and includes the transition ID and protocol version for the transition. When the included transition ID is 0, the transition is for (re)initialization and it can be executed immediately.
 
 ```json
 {
@@ -952,7 +960,7 @@ This opcode uses a JSON text representation, and includes the epoch ID and proto
     ...
     "protocol_version": 1,
     "epoch": 1
-  } 
+  }
 }
 ```
 
@@ -992,8 +1000,8 @@ The basic credential identity for a given member is the big-endian 64-bit unsign
 ```
 struct {
   uint8 opcode = 26;
-  KeyPackage; // see MLS Protocol KeyPackage definition
-} DAVE_MLSKeyPackkage
+  MLSMessage key_package_message; // see MLS Protocol Message and KeyPackage definition
+} DAVE_MLSKeyPackage
 ```
 
 ## dave_mls_proposals (27)
@@ -1018,7 +1026,7 @@ struct {
   ProposalsOperationType operation_type;
   select (operation_type) {
     case append:
-      Proposal proposals<V>; // see MLS Protocol Proposal definition
+      MLSMessage proposal_messages<V>; // see MLS Protocol Message and Proposal definitions
     case revoke:
       ProposalRef proposal_refs<V>;
   }
@@ -1032,16 +1040,16 @@ This opcode uses a binary representation and includes the MLS commit produced by
 
 The Commit and its associated members are un-modified from the [MLS Commit definition](https://www.rfc-editor.org/rfc/rfc9420.html#name-commit). The Welcome and its associated members are un-modified from the [MLS Welcome definition](https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.3.1).
 
-When there is at least one add proposal handled by the commit, the MLSCommitWelcomeOpcode MUST include a Welcome message.
+When there is at least one add proposal handled by the commit, this opcode MUST include a Welcome message.
 
 ```
 struct {
   uint8 opcode = 28;
-  Commit commit; // see MLS Protocol Commit definition
+  MLSMessage commit_message; // see MLSMessage and Commit definitions
 
   select (commit_adds_members) {
     case 0: struct {}
-    case 1: Welcome welcome; // see MLS Protocol Welcome definition
+    case 1: MLSMessage welcome_message; // see MLSMessage and Welcome definitions
   };
 } DAVE_MLSCommitWelcome
 ```
@@ -1057,7 +1065,7 @@ struct {
   uint16 sequence_number;
   uint8 opcode = 29;
   uint16 transition_id;
-  Commit commit; // see MLS Protocol Commit definition
+  MLSMessage commit_message; // see MLSMessage and Commit definitions
 } DAVE_MLSAnnounceCommitTransition
 ```
 
@@ -1072,7 +1080,7 @@ struct {
   uint16 sequence_number;
   uint8 opcode = 30;
   uint16 transition_id;
-  Welcome welcome; // see MLS Protocol Welcome definition
+  MLSMessage welcome_message; // see MLSMessage and Welcome definitions
 } DAVE_MLSWelcome
 ```
 
@@ -1089,6 +1097,17 @@ This opcode uses a JSON text representation and includes the transition ID in wh
   }
 }
 ```
+
+# Changelog
+
+### 1.1.0
+
+- Updated [Client Commit Validity](#client-commit-validity) for additional client-side validation of commits
+  - All included proposals must be proposal references
+  - Any added member must be unique in the group (by snowflake user ID)
+- Corrected [binary opcode formats](#voice-gateway-opcodes) to reference MLSMessage instead of sub-messages
+- Corrected documentation for [dave_protocol_prepare_transition opcode (21)](#dave_protocol_prepare_transition-21) and [Sole Member Reset](#sole-member-reset) to include use of dave_protocol_prepare_transition opcode (21)
+- Corrected some grammatical and spelling errors
 
 # Appendix
 
