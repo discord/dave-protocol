@@ -379,7 +379,7 @@ The MLS exporter_secret changes in each epoch, so calling MLS-Exporter in a diff
 For the per-sender key ratchet base secret:
 
 - Label: “Discord Secure Frames v0”
-- Context: big-endian 64-bit user ID of the sender
+- Context: little-endian 64-bit user ID of the sender
 - Length: 16 bytes
 
 ```
@@ -1099,6 +1099,10 @@ This opcode uses a JSON text representation and includes the transition ID in wh
 ```
 
 # Changelog
+
+### 1.1.1
+
+- Corrected endianness of user ID in per-sender key ratchet base secret for [Sender Key Derivation](#sender-key-derivation)
 
 ### 1.1.0
 
