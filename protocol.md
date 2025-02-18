@@ -1000,7 +1000,7 @@ The basic credential identity for a given member is the big-endian 64-bit unsign
 ```
 struct {
   uint8 opcode = 26;
-  MLSMessage key_package_message; // see MLS Protocol Message and KeyPackage definition
+  MLSMessage key_package_message; // see RFC 9420 MLSMessage and KeyPackage definition
 } DAVE_MLSKeyPackage
 ```
 
@@ -1026,7 +1026,7 @@ struct {
   ProposalsOperationType operation_type;
   select (operation_type) {
     case append:
-      MLSMessage proposal_messages<V>; // see MLS Protocol Message and Proposal definitions
+      MLSMessage proposal_messages<V>; // see RFC 9420 MLSMessage and Proposal definitions
     case revoke:
       ProposalRef proposal_refs<V>;
   }
@@ -1045,11 +1045,11 @@ When there is at least one add proposal handled by the commit, this opcode MUST 
 ```
 struct {
   uint8 opcode = 28;
-  MLSMessage commit_message; // see MLSMessage and Commit definitions
+  MLSMessage commit_message; // see RFC 9420 MLSMessage and Commit definitions
 
   select (commit_adds_members) {
     case 0: struct {}
-    case 1: MLSMessage welcome_message; // see MLSMessage and Welcome definitions
+    case 1: Welcome welcome_message; // see RFC 9420 Welcome definition
   };
 } DAVE_MLSCommitWelcome
 ```
@@ -1065,7 +1065,7 @@ struct {
   uint16 sequence_number;
   uint8 opcode = 29;
   uint16 transition_id;
-  MLSMessage commit_message; // see MLSMessage and Commit definitions
+  MLSMessage commit_message; // see RFC 9420 MLSMessage and Commit definitions
 } DAVE_MLSAnnounceCommitTransition
 ```
 
@@ -1080,7 +1080,7 @@ struct {
   uint16 sequence_number;
   uint8 opcode = 30;
   uint16 transition_id;
-  MLSMessage welcome_message; // see MLSMessage and Welcome definitions
+  Welcome welcome_message; // see RFC 9420 Welcome definition
 } DAVE_MLSWelcome
 ```
 
@@ -1099,6 +1099,11 @@ This opcode uses a JSON text representation and includes the transition ID in wh
 ```
 
 # Changelog
+
+### 1.1.2
+
+- Corrected type of welcome message in [dave_mls_commit_welcome (28)](#dave_mls_commit_welcome-28) and [dave_mls_welcome (30)](#dave_mls_welcome-30) from MLSMessage to Welcome
+- Updated RFC 9420 structure references to include RFC number
 
 ### 1.1.1
 
