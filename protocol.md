@@ -383,7 +383,7 @@ For the per-sender key ratchet base secret:
 - Length: 16 bytes
 
 ```
-sender_base_secret = MLS-Exporter("Discord Secure Frames v0", bigEndianSenderID, 16)
+sender_base_secret = MLS-Exporter("Discord Secure Frames v0", littleEndianSenderID, 16)
 ```
 
 The sender key ratchet is derived similarly to the [MLS sender ratchet for AEAD](https://www.rfc-editor.org/rfc/rfc9420.html#section-9.1). The key ratchet is created with the `sender_base_secret` derived above. It has a function to return the key for a given generation, which ratchets forwards as necessary to derive the key.
@@ -1099,6 +1099,10 @@ This opcode uses a JSON text representation and includes the transition ID in wh
 ```
 
 # Changelog
+
+### 1.1.3
+
+- Corrected variable name for little-endian sender ID in [Sender Key Derivation](#sender-key-derivation)
 
 ### 1.1.2
 
