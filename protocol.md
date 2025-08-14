@@ -221,7 +221,7 @@ After receiving the key package for a pending group member, the voice gateway br
 
 The voice gateway may delay this message to batch multiple MLS proposals in fewer websocket messages, or to finalize committing a previous in-flight add proposal for the same user.
 
-All group members must refuse to process an add proposal for a user that they do not expect to be in the media session (i.e. the user ID in the add proposal was not in a previously received [clients_connect opcode (11)](#clients_connect-11)).
+All group members must refuse to process an add proposal for a user that they do not expect to be in the media session (e.g. the user ID in the add proposal was not in a previously received [clients_connect opcode (11)](#clients_connect-11) or the user ID in the add proposal was in a previously received [client_disconnect opcode (13)](#client_disconnect-13) and has not reconnected).
 
 All group members follow the process described in [Proposal Handling](#proposal-handling) and [Commit Handling](#commit-handling) to add the proposed member to the group.
 
@@ -262,7 +262,7 @@ A client that joins when there is not an established group receives any already 
 
 Members create a local group containing themselves as the sole member once they receive the necessary context (external sender credential and public key and DAVE protocol version). The MLS parameters required for the group are defined by the DAVE protocol version (see [MLS Parameters](#mls-parameters)).
 
-When a member with a local group receives a [dave_mls_proposals opcode (27)](#dave_mls_proposals-27), it appends or revokes the included proposals and optionally sends a commit and welcome back to the voice gateway with the [dave_mls_invalid_commit_welcome opcode (31)](#dave_mls_invalid_commit_welcome-31) (see [Commit Handling](#commit-handling)).
+When a member with a local group receives a [dave_mls_proposals opcode (27)](#dave_mls_proposals-27), it appends or revokes the included proposals and optionally sends a commit and welcome back to the voice gateway with the [dave_mls_commit_welcome opcode (28)](#dave_mls_commit_welcome-28) (see [Commit Handling](#commit-handling)).
 
 If a member receives proposals from the voice gateway while they do not have a local group, the proposals are ignored.
 
@@ -904,6 +904,19 @@ This opcode uses a JSON text representation, and includes one or more Discord sn
 }
 ```
 
+## client_disconnect (13)
+
+This opcode uses a JSON text representation, and includes one Discord snowflake user ID of a user that has disconnected from the media session. It is used by the protocol to ensure that the proposed additions of MLS group members match expected media session users.
+```json
+{
+  "op": 13,
+  ...
+  "d": {
+    "user_id": "1090123456789012345"
+  }
+}
+```
+
 ## dave_protocol_prepare_transition (21)
 
 This opcode uses a JSON text representation, and includes the transition ID and protocol version for the transition. When the included transition ID is 0, the transition is for (re)initialization and it can be executed immediately.
@@ -1099,6 +1112,11 @@ This opcode uses a JSON text representation and includes the transition ID in wh
 ```
 
 # Changelog
+
+### 1.1.4
+
+- Added [client_disconnect opcode (13)](#client_disconnect-13) and referenced how it can be used in [Member Add](#member-add)
+- Corrected opcode in [Inital Group Creation](#initial-group-creation) from [dave_mls_invalid_commit_welcome (31)](#dave_mls_invalid_commit_welcome-31) to [dave_mls_commit_welcome (28)](#dave_mls_commit_welcome-28)
 
 ### 1.1.3
 
